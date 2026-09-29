@@ -15,5 +15,11 @@ __pycache__/
 get_metrics.py
 # Local Python environments and build diagnostics
 .venv/
-.local-setup/
+temporary-build/
 *.pyd
+
+dependency-cache/
+
+external-dependencies/
+
+environment-backups/

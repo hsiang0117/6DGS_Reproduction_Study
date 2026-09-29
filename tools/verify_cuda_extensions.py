@@ -61,6 +61,6 @@ result = {"torch": torch.__version__, "torchvision": torchvision.__version__, "c
           "knn_matches_brute_force": True, "render_shape": list(img.shape),
           "loss": float(loss.detach()), "parameter_gradient_norms": grads,
           "optimizer_step": "passed"}
-(ROOT / ".local-setup").mkdir(exist_ok=True)
-(ROOT / ".local-setup" / "smoke-result.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
+(ROOT / "temporary-build").mkdir(exist_ok=True)
+(ROOT / "temporary-build" / "smoke-result.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
 print(json.dumps(result, indent=2))

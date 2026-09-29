@@ -31,7 +31,7 @@ $env:CUDA_HOME = $CudaPath
 $env:TORCH_CUDA_ARCH_LIST = $CudaArch
 $env:MAX_JOBS = "$Jobs"
 $env:PATH = "$(Split-Path $python -Parent);$CudaPath\bin;$env:PATH"
-$setup = Join-Path $repo '.local-setup'
+$setup = Join-Path $repo 'temporary-build'
 New-Item -ItemType Directory -Force -Path $setup | Out-Null
 Push-Location -LiteralPath $repo
 try {
@@ -43,7 +43,7 @@ try {
         $source = Join-Path $repo "submodules\$extension"
         Write-Output "Building $extension with $python"
         & $python -I -m pip install --no-build-isolation --no-deps --force-reinstall --no-cache-dir $source --log "$setup\$extension-own-venv.log"
-        if ($LASTEXITCODE -ne 0) { throw "Failed: $extension. See .local-setup/$extension-own-venv.log" }
+        if ($LASTEXITCODE -ne 0) { throw "Failed: $extension. See temporary-build/$extension-own-venv.log" }
     }
     & $python -I tools/verify_cuda_extensions.py
     if ($LASTEXITCODE -ne 0) { throw 'CUDA numerical/gradient checks failed.' }
