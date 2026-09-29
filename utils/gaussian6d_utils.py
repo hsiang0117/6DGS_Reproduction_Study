@@ -30,7 +30,14 @@ def pack_covariance(covariance):
 
 def covariance_scale_rotation(covariance):
     # Refinement runs without gradients; eigh preserves the sign of eigenvalues.
-    values, rotation = torch.linalg.eigh(covariance)
+    # CUDA's batched eigh can reject large batches even for finite 3x3 matrices.
+    # Chunk only the batch dimension; each Gaussian's decomposition is unchanged.
+    if covariance.is_cuda and covariance.shape[0] > 8192:
+        decomposed = [torch.linalg.eigh(chunk) for chunk in covariance.split(8192)]
+        values = torch.cat([item[0] for item in decomposed])
+        rotation = torch.cat([item[1] for item in decomposed])
+    else:
+        values, rotation = torch.linalg.eigh(covariance)
     rotation = rotation.clone()
     rotation[:, :, -1] *= torch.linalg.det(rotation).sign().unsqueeze(-1)
     return values.clamp_min(0).sqrt(), rotation

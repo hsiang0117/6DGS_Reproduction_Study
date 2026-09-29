@@ -17,7 +17,7 @@ from arguments import OptimizationParams
 from gaussian_renderer import render
 from scene.cameras import Camera, MiniCam
 from scene.gaussian_model import GaussianModel
-from utils.gaussian6d_utils import conditional_parameters
+from utils.gaussian6d_utils import conditional_parameters, covariance_scale_rotation
 from utils.graphics_utils import BasicPointCloud, getProjectionMatrix
 from utils.sh_utils import C0, eval_sh
 
@@ -68,6 +68,13 @@ class ConditioningTests(unittest.TestCase):
 
 @unittest.skipUnless(torch.cuda.is_available(), 'CUDA extensions required')
 class ReproductionTests(unittest.TestCase):
+    def test_large_cuda_covariance_batch(self):
+        covariance = torch.diag(torch.tensor([0.25, 1.0, 4.0], device='cuda')).repeat(200000, 1, 1)
+        scales, rotation = covariance_scale_rotation(covariance)
+        reconstructed = (rotation * scales.square().unsqueeze(-2)) @ rotation.transpose(-1, -2)
+        torch.testing.assert_close(reconstructed, covariance)
+        torch.testing.assert_close(torch.linalg.det(rotation), torch.ones(200000, device='cuda'))
+
     def test_small_direction_covariance(self):
         m = model(1)
         with torch.no_grad():

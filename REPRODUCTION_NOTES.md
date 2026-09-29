@@ -33,6 +33,10 @@
 `8 * finfo(dtype).eps * mean(diagonal(reference_covariance)) * I`。
 这是明确的数值正则，不是论文新增的物理项。没有固定绝对行列式偏置。
 
+本机 PyTorch/CUDA 的大批量 `eigh` 在 20 万个有限单位矩阵上也会报
+`CUSOLVER_STATUS_INVALID_VALUE`。增密阶段将特征分解按最多 8192 个矩阵分批，
+不修改单个高斯的分解公式，不改 CUDA kernel。
+
 方向均值归一化、方向尺度初始 0.3、初始交叉块为零沿用第三方实现；论文未完整
 交代这些选择，暂不把它们改为未经验证的新假设。场景初始化仍需检查已有
 `points3d.ply` 或默认 [-1.3,1.3] 范围是否合适。
@@ -46,6 +50,12 @@ mask 同时作用于预测和 GT，独立于源图 alpha。默认关闭该曝光
 训练 loss 仍为 L1 + DSSIM，没有增加 LPIPS loss。LPIPS 仅用于指定迭代的评估。
 正式比较继续使用一致的测试划分、背景和外部统一评估脚本，并传 `--eval`。
 README 中原作者报告的数字不代表本修正版的结果。
+
+未指定 `-m` 时，训练输出默认写入 `output/YYYYMMDD_HHMMSS`；同秒重名时
+追加 `_NN`。每 1000 次迭代将当前训练视角的渲染图保存至
+`render_test/iter_NNNNNN_<image_name>.png`，直接复用训练渲染，不额外增加
+渲染或 LPIPS 计算。读取器兼容已带扩展名的图像路径，并以相对路径生成图像名，
+避免 Zenith 各机位的 `0000.png` 重名。
 
 ## 保存及兼容性
 

@@ -234,7 +234,10 @@ def readCamerasFromTransforms(path, transformsfile, depths_folder, white_backgro
 
         frames = contents["frames"]
         for idx, frame in enumerate(frames):
-            cam_name = os.path.join(path, frame["file_path"] + extension)
+            file_path = frame["file_path"]
+            if not Path(file_path).suffix:
+                file_path += extension
+            cam_name = os.path.join(path, file_path)
 
             # NeRF 'transform_matrix' is a camera-to-world transform
             c2w = np.array(frame["transform_matrix"])
@@ -246,8 +249,9 @@ def readCamerasFromTransforms(path, transformsfile, depths_folder, white_backgro
             R = np.transpose(w2c[:3,:3])  # R is stored transposed due to 'glm' in CUDA code
             T = w2c[:3, 3]
 
-            image_path = os.path.join(path, cam_name)
-            image_name = Path(cam_name).stem
+            image_path = cam_name
+            # Nested datasets can reuse 0000.png across all camera folders.
+            image_name = Path(os.path.relpath(cam_name, path)).with_suffix("").as_posix().replace("/", "_")
             image = Image.open(image_path)
 
             # Background compositing happens in Camera, where pixels are loaded.
@@ -256,7 +260,7 @@ def readCamerasFromTransforms(path, transformsfile, depths_folder, white_backgro
             FovY = fovy 
             FovX = fovx
 
-            depth_path = os.path.join(depths_folder, f"{image_name}.png") if depths_folder != "" else ""
+            depth_path = os.path.join(depths_folder, f"{Path(cam_name).stem}.png") if depths_folder != "" else ""
 
             cam_infos.append(CameraInfo(uid=idx, R=R, T=T, FovY=FovY, FovX=FovX,
                             image_path=image_path, image_name=image_name,
