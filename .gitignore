@@ -13,3 +13,7 @@ __pycache__/
 
 # Scratch scripts
 get_metrics.py
+# Local Python environments and build diagnostics
+.venv/
+.local-setup/
+*.pyd

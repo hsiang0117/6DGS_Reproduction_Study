@@ -34,6 +34,10 @@ establish that the learned representation recovers physical volume density.
 
 ## Environment Setup
 
+For the validated Windows / RTX 50-series build using this repository's own
+virtual environment, see [WINDOWS_BUILD.md](WINDOWS_BUILD.md). The Linux setup
+below is the historical upstream configuration.
+
 ```bash
 # Python 3.10 venv with PyTorch cu121 against CUDA 12.1 toolkit
 cd /home/bhuvan/6DGS
