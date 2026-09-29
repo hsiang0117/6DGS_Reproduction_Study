@@ -41,7 +41,7 @@ def main():
         raise SystemExit('Only the audited torch 2.11.0+cu128 build is supported.')
     if not Path(torch.__file__).resolve().is_relative_to(venv.resolve()):
         raise SystemExit('torch was imported from outside this repository venv.')
-    setup = ROOT / '.local-setup'
+    setup = ROOT / 'environment-backups'
     operations = []
     # Validate every input before modifying either header.
     for relative, original_hash, patched_hash, old, new in PATCHES:

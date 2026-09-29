@@ -28,7 +28,7 @@ NVCC/MSVC 编译 `spatial.cu` 时，PyTorch 的 `compiled_autograd.h` 在 `IValu
 //       return at::StringType::get();
 ```
 
-`tools/patch_torch_header.py` 只修改当前仓库 venv 的头文件；检查 PyTorch 版本和完整文件 SHA256，拒绝未知版本，保留原始换行符，并自动备份到 `.local-setup/<头文件名>.original`。重复应用无额外修改。
+`tools/patch_torch_header.py` 只修改当前仓库 venv 的头文件；检查 PyTorch 版本和完整文件 SHA256，拒绝未知版本，保留原始换行符，并自动备份到 `environment-backups/<头文件名>.original`。重复应用无额外修改。
 
 这是有范围限制的本地兼容补丁，会移除此模板的字符串类型映射；不是通用等价修复。不修改高斯渲染、KNN 或 SSIM 算法。若以后需要该模板处理字符串，或升级/重装 PyTorch，应重新评估。
 
@@ -54,7 +54,7 @@ NVCC/MSVC 编译 `spatial.cu` 时，PyTorch 的 `compiled_autograd.h` 在 `IValu
 脚本使用本仓库 Python、MSVC 14.44 和 `TORCH_CUDA_ARCH_LIST=12.0`；用 `--no-build-isolation --force-reinstall --no-deps` 构建安装三个本仓库子模块：
 `diff-gaussian-rasterization`、`simple-knn`、`fused-ssim`。
 普通控制台设置代码页 936，避免中文 MSVC 输出与 PyTorch OEM 解码不一致；不修改 Python/PyTorch 解码函数。
-构建来源记录和各扩展日志位于 `.local-setup/build-environment.json` 及 `*-own-venv.log`。
+构建来源记录和各扩展日志位于 `temporary-build/build-environment.json` 及 `*-own-venv.log`。
 
 构建结束自动检查实际 GPU 运算：KNN 对照暴力最近邻计算、6DGS 渲染、fused SSIM 反向传播、参数梯度和一次优化器更新，并执行 `pip check`。
 也可独立验证：
