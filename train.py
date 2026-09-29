@@ -10,6 +10,7 @@
 #
 
 import os
+import json
 import torch
 from random import randint
 from utils.loss_utils import l1_loss, ssim
@@ -48,6 +49,8 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
     first_iter = 0
     tb_writer = prepare_output_and_logger(dataset)
+    with open(os.path.join(dataset.model_path, "training_config.json"), "w", encoding="utf-8") as config_file:
+        json.dump({"dataset": vars(dataset), "optimization": vars(opt), "pipeline": vars(pipe)}, config_file, indent=2)
     gaussians = GaussianModel(dataset.sh_degree, opt.optimizer_type)
     scene = Scene(dataset, gaussians)
     gaussians.training_setup(opt)
@@ -112,12 +115,12 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         render_pkg = render(viewpoint_cam, gaussians, pipe, bg, use_trained_exp=dataset.train_test_exp, separate_sh=SPARSE_ADAM_AVAILABLE)
         image, viewspace_point_tensor, visibility_filter, radii = render_pkg["render"], render_pkg["viewspace_points"], render_pkg["visibility_filter"], render_pkg["radii"]
 
-        if viewpoint_cam.alpha_mask is not None:
-            alpha_mask = viewpoint_cam.alpha_mask.cuda()
-            image *= alpha_mask
-
         # Loss
         gt_image = viewpoint_cam.original_image.cuda()
+        if dataset.train_test_exp:
+            # Only the explicit train/test exposure holdout uses a loss mask.
+            image = image * viewpoint_cam.alpha_mask
+            gt_image = gt_image * viewpoint_cam.alpha_mask
         Ll1 = l1_loss(image, gt_image)
         if FUSED_SSIM_AVAILABLE:
             ssim_value = fused_ssim(image.unsqueeze(0), gt_image.unsqueeze(0))
@@ -221,6 +224,12 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_i
     # Report test and samples of training set
     if iteration in testing_iterations:
         torch.cuda.empty_cache()
+        lambda_values = scene.gaussians.get_lambda_opa.detach()
+        if lambda_values.numel():
+            print("[ITER {}] lambda: mean {:.6f}, min {:.6f}, max {:.6f}".format(
+                iteration, lambda_values.mean().item(), lambda_values.min().item(), lambda_values.max().item()))
+            if tb_writer:
+                tb_writer.add_scalar('scene/lambda_mean', lambda_values.mean().item(), iteration)
         validation_configs = ({'name': 'test', 'cameras' : scene.getTestCameras()}, 
                               {'name': 'train', 'cameras' : [scene.getTrainCameras()[idx % len(scene.getTrainCameras())] for idx in range(5, 30, 5)]})
 

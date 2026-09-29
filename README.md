@@ -1,12 +1,20 @@
 # 6D Gaussian Splatting — Reproduction Study
 
+> **Local correction, 2026-09-29:** the implementation now uses sigmoid SH colors,
+> one shared viewing direction, per-Gaussian trainable opacity modulation,
+> corrected splitting and RGBA targets, and standardized LPIPS evaluation.
+> CUDA sources are unchanged. Read [REPRODUCTION_NOTES.md](REPRODUCTION_NOTES.md)
+> for defaults, numerical choices, validation, and checkpoint compatibility.
+> The experiment numbers and environment below are historical upstream reports;
+> they have not been reproduced with this corrected code.
+
 > **Reproduction of:** *6DGS: Enhanced Direction-Aware Gaussian Splatting for Volumetric Rendering*  
 > Zhongpai Gao et al., ICLR 2025  
 > This repository is a **reproduction study** built on top of the official [gaussian-splatting](https://github.com/graphdeco-inria/gaussian-splatting) codebase (Kerbl et al., SIGGRAPH 2023). No official source code from the 6DGS authors was used; all modifications were independently implemented from the paper's mathematical specification.
 
 ---
 
-## Why 6DGS is Fundamentally Superior to 3DGS
+## Representation
 
 Standard 3D Gaussian Splatting represents a scene as a collection of **static ellipsoids** in 3D space. Each ellipsoid has a fixed position, orientation, and scale that never change regardless of where the camera is. To simulate view-dependent effects like specular highlights or reflections, 3DGS attaches **Spherical Harmonic (SH) coefficients** to each point — a polynomial function that outputs a different *colour* depending on viewing direction. Crucially, the **geometry and opacity** of each Gaussian remain invariant to viewpoint.
 
@@ -17,7 +25,10 @@ This is a fundamental limitation for volumetric and translucent objects. Conside
 $$\Sigma_{\text{cond}} = \Sigma_p - \Sigma_{pd}\,\Sigma_d^{-1}\,\Sigma_{pd}^\top$$
 $$\mu_{\text{cond}} = \mu_p + \Sigma_{pd}\,\Sigma_d^{-1}(d - \mu_d)$$
 
-The slice produces a different 3D mean, covariance, and **opacity** for every viewpoint. This is why 6DGS can faithfully represent materials that 3DGS cannot: the physical shape and transmittance of each primitive is dynamically conditioned on the camera. The paper reports up to **+15.73 dB PSNR** over 3DGS and a **66.5% reduction in Gaussian count** on the same scenes.
+The conditional mean and opacity vary with viewing direction. For fixed model
+parameters, the conditional covariance is independent of viewing direction.
+This remains an appearance reconstruction model; image metrics alone do not
+establish that the learned representation recovers physical volume density.
 
 ---
 

@@ -20,7 +20,8 @@ class Camera(nn.Module):
     def __init__(self, resolution, colmap_id, R, T, FoVx, FoVy, depth_params, image, invdepthmap,
                  image_name, uid,
                  trans=np.array([0.0, 0.0, 0.0]), scale=1.0, data_device = "cuda",
-                 train_test_exp = False, is_test_dataset = False, is_test_view = False
+                 train_test_exp = False, is_test_dataset = False, is_test_view = False,
+                 white_background = False
                  ):
         super(Camera, self).__init__()
 
@@ -41,11 +42,11 @@ class Camera(nn.Module):
 
         resized_image_rgb = PILtoTorch(image, resolution)
         gt_image = resized_image_rgb[:3, ...]
-        self.alpha_mask = None
+        # Source alpha describes image compositing, not a training-loss mask.
         if resized_image_rgb.shape[0] == 4:
-            self.alpha_mask = resized_image_rgb[3:4, ...].to(self.data_device)
-        else: 
-            self.alpha_mask = torch.ones_like(resized_image_rgb[0:1, ...].to(self.data_device))
+            alpha = resized_image_rgb[3:4, ...]
+            gt_image = gt_image * alpha + float(white_background) * (1 - alpha)
+        self.alpha_mask = torch.ones_like(resized_image_rgb[0:1, ...]).to(self.data_device)
 
         if train_test_exp and is_test_view:
             if is_test_dataset:

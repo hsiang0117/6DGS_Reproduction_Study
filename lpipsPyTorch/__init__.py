@@ -1,6 +1,12 @@
 import torch
+from functools import lru_cache
 
 from .modules.lpips import LPIPS
+
+
+@lru_cache(maxsize=4)
+def _metric(net_type, version, device):
+    return LPIPS(net_type, version).to(device).eval().requires_grad_(False)
 
 
 def lpips(x: torch.Tensor,
@@ -16,6 +22,11 @@ def lpips(x: torch.Tensor,
                         'alex' | 'squeeze' | 'vgg'. Default: 'alex'.
         version (str): the version of LPIPS. Default: 0.1.
     """
-    device = x.device
-    criterion = LPIPS(net_type, version).to(device)
-    return criterion(x, y)
+    # This convenience API accepts renderer RGB in [0,1]. The LPIPS module
+    # itself follows the official [-1,1] convention.
+    if x.ndim == 3:
+        x = x.unsqueeze(0)
+    if y.ndim == 3:
+        y = y.unsqueeze(0)
+    criterion = _metric(net_type, version, str(x.device))
+    return criterion((2 * x - 1).contiguous(), (2 * y - 1).contiguous())

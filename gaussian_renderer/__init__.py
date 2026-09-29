@@ -52,7 +52,9 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     rasterizer = GaussianRasterizer(raster_settings=raster_settings)
 
     # Slice 6DGS to 3DGS
-    means3D_cond, cov3D_precomp, opacity_cond = pc.slice_to_3dgs(viewpoint_camera.camera_center)
+    direction = pc.view_direction(viewpoint_camera.camera_center)
+    means3D_cond, cov3D_precomp, opacity_cond = pc.slice_to_3dgs(viewpoint_camera.camera_center, direction)
+    cov3D_precomp = cov3D_precomp * (scaling_modifier ** 2)
     
     means3D = means3D_cond
     means2D = screenspace_points
@@ -60,46 +62,20 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     scales = None
     rotations = None
 
+    # Always use one PyTorch SH path: CUDA's built-in SH uses a different
+    # activation and recomputes directions from the conditional positions.
+    # Legacy convert_SHs_python/separate_sh switches no longer alter semantics.
     if override_color is None:
-        if pipe.convert_SHs_python:
-            shs_view = pc.get_features.transpose(1, 2).view(-1, 3, (pc.max_sh_degree+1)**2)
-            dir_pp = (pc.get_xyz - viewpoint_camera.camera_center.repeat(pc.get_features.shape[0], 1))
-            dir_pp_normalized = dir_pp/dir_pp.norm(dim=1, keepdim=True)
-            sh2rgb = eval_sh(pc.active_sh_degree, shs_view, dir_pp_normalized)
-            colors_precomp = torch.clamp_min(sh2rgb + 0.5, 0.0)
-        else:
-            if separate_sh:
-                dc, shs = pc.get_features_dc, pc.get_features_rest
-            else:
-                shs = pc.get_features
-            colors_precomp = None
+        sh = pc.get_features.transpose(1, 2)
+        colors_precomp = torch.sigmoid(eval_sh(pc.active_sh_degree, sh, direction))
     else:
         colors_precomp = override_color
-        shs = None
 
-    # Rasterize visible Gaussians to image, obtain their radii (on screen). 
-    if separate_sh:
-        rendered_image, radii, depth_image = rasterizer(
-            means3D = means3D,
-            means2D = means2D,
-            dc = dc,
-            shs = shs,
-            colors_precomp = colors_precomp,
-            opacities = opacity,
-            scales = scales,
-            rotations = rotations,
-            cov3D_precomp = cov3D_precomp)
-    else:
-        rendered_image, radii, depth_image = rasterizer(
-            means3D = means3D,
-            means2D = means2D,
-            shs = shs,
-            colors_precomp = colors_precomp,
-            opacities = opacity,
-            scales = scales,
-            rotations = rotations,
-            cov3D_precomp = cov3D_precomp)
-        
+    rendered_image, radii, depth_image = rasterizer(
+        means3D=means3D, means2D=means2D, shs=None,
+        colors_precomp=colors_precomp, opacities=opacity,
+        scales=scales, rotations=rotations, cov3D_precomp=cov3D_precomp)
+
     # Apply exposure to rendered image (training only)
     if use_trained_exp:
         exposure = pc.get_exposure_from_name(viewpoint_camera.image_name)
@@ -109,7 +85,7 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     out = {
         "render": rendered_image,
         "viewspace_points": screenspace_points,
-        "visibility_filter" : (radii > 0).nonzero(),
+        "visibility_filter" : radii > 0,
         "radii": radii,
         "depth" : depth_image
         }

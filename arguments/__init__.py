@@ -80,6 +80,10 @@ class OptimizationParams(ParamGroup):
         self.position_lr_max_steps = 30_000
         self.feature_lr = 0.0025
         self.opacity_lr = 0.025
+        # Paper specifies the learning window, but not lambda's learning rate.
+        self.lambda_opa_lr = 0.001
+        self.lambda_opa_from_iter = 15_000
+        self.lambda_opa_until_iter = 28_000
         self.scaling_lr = 0.005
         self.rotation_lr = 0.001
         self.exposure_lr_init = 0.01
